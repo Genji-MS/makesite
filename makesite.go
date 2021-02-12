@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 type FileInfo struct {
@@ -14,6 +17,7 @@ type FileInfo struct {
 
 func main() {
 	file := flag.String("file", "", " filename of .txt file to be parsed")
+	dir := flag.String("dir", "", " directory where we parse .txt files")
 	flag.Parse()
 	if len(*file) > 0 {
 		text, err := ioutil.ReadFile(*file) //"first-post.txt"
@@ -23,13 +27,28 @@ func main() {
 
 		directory := "."
 		filename := *file
-		f, err := os.Create(directory + "/" + filename[:len(filename)-4] + ".html")
+		f, err := os.Create(directory + "/" + strings.TrimSuffix(filename, filepath.Ext(filename)) + ".html")
+		//works, however it's assuming the suffix of a file is 4 characters in length. So we use the above
+		//f, err := os.Create(directory + "/" + filename[:len(filename)-4] + ".html")
 		check(err)
 		err = t.Execute(f, td)
 		check(err)
 		f.Close()
+	} else if len(*dir) > 0 {
+		// Check in directory, if files have proper extension display them
+		files, err := ioutil.ReadDir(*dir)
+		check(err)
+		for _, file := range files {
+			if filepath.Ext(file.Name()) == ".txt" {
+				fmt.Println(file.Name())
+				txt_to_html(*dir, file.Name())
+				//removes the file extension from a file
+				//fileTitle := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+				//fmt.Println(*dir + "/" + fileTitle)
+			}
+		}
+		return
 	}
-
 	// t, err := template.New("Note").Parse(" \"{{.Intro}}\"  \"{{.Body}}\"")
 	// if err != nil {
 	// 	panic(err)
@@ -61,6 +80,22 @@ func main() {
 	// f, err := os.Create("/tmp/first-post2")
 	// check(err)
 	// defer f.Close()
+}
+
+func txt_to_html(directory string, textfile string) {
+	text, err := ioutil.ReadFile(textfile) //"first-post.txt"
+	check(err)
+	td := FileInfo{"Our note reads as follows:", string(text)}
+	t := template.Must(template.New("template.tmpl").ParseFiles("template.tmpl"))
+
+	filename := textfile
+	f, err := os.Create(directory + "/" + strings.TrimSuffix(filename, filepath.Ext(filename)) + ".html")
+	//works, however it's assuming the suffix of a file is 4 characters in length. So we use the above
+	//f, err := os.Create(directory + "/" + filename[:len(filename)-4] + ".html")
+	check(err)
+	err = t.Execute(f, td)
+	check(err)
+	f.Close()
 }
 
 func check(e error) {
