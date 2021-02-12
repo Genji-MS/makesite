@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -38,14 +39,23 @@ func main() {
 		// Check in directory, if files have proper extension display them
 		files, err := ioutil.ReadDir(*dir)
 		check(err)
+		printedFiles := 0
+		totalFileSize := 0.0
 		for _, file := range files {
 			if filepath.Ext(file.Name()) == ".txt" {
+				printedFiles++
 				fmt.Println(file.Name())
-				txt_to_html(*dir, file.Name())
+				totalFileSize += txtToHTML(*dir, file.Name())
 				//removes the file extension from a file
 				//fileTitle := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 				//fmt.Println(*dir + "/" + fileTitle)
 			}
+		}
+		if printedFiles > 0 {
+			//format to float <> string https://yourbasic.org/golang/convert-int-to-string/
+			FileSize_String := fmt.Sprintf("%.1f", totalFileSize)
+			// Terminal commands for color/font https://stackoverflow.com/questions/2924697/how-does-one-output-bold-text-in-bash
+			fmt.Printf("\033[32m\033[1mSuccess!\033[0m Generated \033[1m%s\033[0m pages (%skB total).\n", strconv.Itoa(printedFiles), FileSize_String)
 		}
 		return
 	}
@@ -82,20 +92,25 @@ func main() {
 	// defer f.Close()
 }
 
-func txt_to_html(directory string, textfile string) {
+func txtToHTML(directory string, textfile string) (fileSize float64) {
 	text, err := ioutil.ReadFile(textfile) //"first-post.txt"
 	check(err)
 	td := FileInfo{"Our note reads as follows:", string(text)}
 	t := template.Must(template.New("template.tmpl").ParseFiles("template.tmpl"))
 
-	filename := textfile
-	f, err := os.Create(directory + "/" + strings.TrimSuffix(filename, filepath.Ext(filename)) + ".html")
+	htmlfile := strings.TrimSuffix(textfile, filepath.Ext(textfile)) + ".html"
+	f, err := os.Create(directory + "/" + htmlfile)
 	//works, however it's assuming the suffix of a file is 4 characters in length. So we use the above
 	//f, err := os.Create(directory + "/" + filename[:len(filename)-4] + ".html")
 	check(err)
 	err = t.Execute(f, td)
 	check(err)
+	//we cannot call .Stat().Size() so we store multiple variables to pull statistics of a file, then the file size
+	fileInfo, _ := os.Stat(htmlfile)
+	fileSize = float64(fileInfo.Size() / 1000)
+	//fmt.Println(fileSize) // /1000 because we want kB not Bytes
 	f.Close()
+	return fileSize
 }
 
 func check(e error) {
