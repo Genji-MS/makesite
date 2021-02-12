@@ -55,7 +55,7 @@ func main() {
 			//format to float <> string https://yourbasic.org/golang/convert-int-to-string/
 			FileSize_String := fmt.Sprintf("%.1f", totalFileSize)
 			// Terminal commands for color/font https://stackoverflow.com/questions/2924697/how-does-one-output-bold-text-in-bash
-			fmt.Printf("\033[32m\033[1mSuccess!\033[0m Generated \033[1m%s\033[0m pages (%skB total).\n", strconv.Itoa(printedFiles), FileSize_String)
+			fmt.Printf("\033[32m\033[1mSuccess!\033[0m Generated \033[1m%s\033[0m pages \033[34m(\033[36m%skB total\033[34m)\033[0m.\n", strconv.Itoa(printedFiles), FileSize_String)
 		}
 		return
 	}
