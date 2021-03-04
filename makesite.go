@@ -3,7 +3,6 @@ package main
 //GOROOT="/usr/local/go"
 //GOPATH="/Users/g3n6i/go"
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"html/template"
@@ -12,11 +11,15 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/kortschak/zalgo"
 )
 
-type FileInfo struct {
+type TextFile struct {
+	Intro string
+	Body  string
+}
+
+type ImageFile struct {
+	Image string
 	Intro string
 	Body  string
 }
@@ -27,17 +30,14 @@ func main() {
 	flag.Parse()
 
 	if *file != "" {
-		text, err := ioutil.ReadFile(*file)
-		check(err)
-		td := FileInfo{"Our note reads as follows:", string(text)}
-		t := template.Must(template.New("template.tmpl").ParseFiles("template.tmpl"))
 		directory := "."
-		filename := *file
-		f, err := os.Create(directory + "/" + strings.TrimSuffix(filename, filepath.Ext(filename)) + ".html")
-		check(err)
-		err = t.Execute(f, td)
-		check(err)
-		f.Close()
+		filename := strings.TrimSuffix(*file, filepath.Ext(*file))
+		useImageTemplate := false
+		if _, err := os.Stat(filename + ".png"); err == nil {
+			//if image exists, use our HTML image template
+			useImageTemplate = true
+		}
+		txtToHTML(directory, filename, useImageTemplate)
 	} else if *dir != "" {
 		files, err := ioutil.ReadDir(*dir)
 		check(err)
@@ -48,7 +48,12 @@ func main() {
 				printedFiles++
 				fileName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 				fmt.Println(fileName)
-				totalFileSize += txtToHTML(*dir, fileName)
+				useImageTemplate := false
+				if _, err := os.Stat(fileName + ".png"); err == nil {
+					//if image exists, use our HTML image template
+					useImageTemplate = true
+				}
+				totalFileSize += txtToHTML(*dir, fileName, useImageTemplate)
 			}
 		}
 		if printedFiles > 0 {
@@ -58,24 +63,21 @@ func main() {
 	}
 }
 
-func txtToHTML(directory, fileName string) (fileSize float64) {
+func txtToHTML(directory, fileName string, useImageTemplate bool) (fileSize float64) {
+	var td interface{} // declares a variable of unknown type
+	var templateSelector string
 	text, err := ioutil.ReadFile(fileName + ".txt") //"first-post.txt"
 	check(err)
 
-	g := new(bytes.Buffer)
-	glitch := zalgo.NewCorrupter(g)
-	glitch.Zalgo = func(n int, r rune, z *zalgo.Corrupter) bool {
-		z.Up += 0.001
-		z.Middle += complex(0.001, 0.001)
-		z.Down += complex(real(z.Down)*0.001, 0)
-		return false
+	if useImageTemplate {
+		templateSelector = "templateImg.tmpl"
+		td = ImageFile{string(fileName + ".png"), "Our note reads as follows:", string(text)}
+	} else {
+		templateSelector = "template.tmpl"
+		td = TextFile{"Our note reads as follows:", string(text)}
 	}
+	t := template.Must(template.New(templateSelector).ParseFiles(templateSelector))
 
-	fmt.Fprintln(glitch, string(text))
-	//fmt.Println(g.String())
-
-	td := FileInfo{"Our note reads as follows:", g.String()}
-	t := template.Must(template.New("template.tmpl").ParseFiles("template.tmpl"))
 	htmlfile := fileName + ".html"
 	f, err := os.Create(directory + "/" + htmlfile)
 	check(err)
