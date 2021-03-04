@@ -3,6 +3,7 @@ package main
 //GOROOT="/usr/local/go"
 //GOPATH="/Users/g3n6i/go"
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"html/template"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"github.com/kortschak/zalgo"
 )
 
 type TextFile struct {
@@ -69,15 +71,27 @@ func txtToHTML(directory, fileName string, useImageTemplate bool) (fileSize floa
 	text, err := ioutil.ReadFile(fileName + ".txt") //"first-post.txt"
 	check(err)
 
+	g := new(bytes.Buffer)
+	glitch := zalgo.NewCorrupter(g)
+	glitch.Zalgo = func(n int, r rune, z *zalgo.Corrupter) bool {
+		z.Up += 0.001
+		z.Middle += complex(0.001, 0.001)
+		z.Down += complex(real(z.Down)*0.001, 0)
+		return false
+	}
+
+	fmt.Fprintln(glitch, string(text))
+	//fmt.Println(g.String())
+	formattedText := g.String()
+
 	if useImageTemplate {
 		templateSelector = "templateImg.tmpl"
-		td = ImageFile{string(fileName + ".png"), "Our note reads as follows:", string(text)}
+		td = ImageFile{string(fileName + ".png"), "Our note reads as follows:", formattedText}
 	} else {
 		templateSelector = "template.tmpl"
-		td = TextFile{"Our note reads as follows:", string(text)}
+		td = TextFile{"Our note reads as follows:", formattedText}
 	}
 	t := template.Must(template.New(templateSelector).ParseFiles(templateSelector))
-
 	htmlfile := fileName + ".html"
 	f, err := os.Create(directory + "/" + htmlfile)
 	check(err)
